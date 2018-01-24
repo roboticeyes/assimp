@@ -478,6 +478,11 @@ ADD_ASSIMP_IMPORTER( OBJ
   Obj/ObjTools.h
 )
 
+ADD_ASSIMP_IMPORTER( REX
+  RexExporter.h
+  RexExporter.cpp
+)
+
 ADD_ASSIMP_IMPORTER( OGRE
   Ogre/OgreImporter.h
   Ogre/OgreStructs.h
