@@ -48,6 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assimp/types.h>
 #include <sstream>
 #include <vector>
+#include <memory>
 #include <map>
 
 #ifdef _WIN32
