@@ -89,6 +89,7 @@ void ExportSceneCollada(const char*,IOSystem*, const aiScene*, const ExportPrope
 void ExportSceneXFile(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneStep(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneObj(const char*,IOSystem*, const aiScene*, const ExportProperties*);
+void ExportSceneRex(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneObjNoMtl(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneSTL(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneSTLBinary(const char*,IOSystem*, const aiScene*, const ExportProperties*);
@@ -133,8 +134,8 @@ static void setupExporterArray(std::vector<Exporter::ExportFormatEntry> &exporte
 #endif
 
 #ifndef ASSIMP_BUILD_NO_REX_EXPORTER
-    Exporter::ExportFormatEntry( "rex", "REX file format (AR platform)", "rex", &ExportSceneRex,
-        aiProcess_Triangulate /*| aiProcess_PreTransformVertices */ ),
+	exporters.push_back(Exporter::ExportFormatEntry("rex", "REXfile (REXos platform)", "rex", &ExportSceneRex,
+			aiProcess_GenSmoothNormals | aiProcess_Triangulate /*| aiProcess_PreTransformVertices */));
 #endif
 
 #ifndef ASSIMP_BUILD_NO_STL_EXPORTER

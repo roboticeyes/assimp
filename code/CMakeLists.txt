@@ -478,11 +478,6 @@ ADD_ASSIMP_IMPORTER( OBJ
   Obj/ObjTools.h
 )
 
-ADD_ASSIMP_IMPORTER( REX
-  RexExporter.h
-  RexExporter.cpp
-)
-
 ADD_ASSIMP_IMPORTER( OGRE
   Ogre/OgreImporter.h
   Ogre/OgreStructs.h
@@ -603,6 +598,10 @@ if (NOT ASSIMP_NO_EXPORT)
   ADD_ASSIMP_EXPORTER( OBJ
     Obj/ObjExporter.h
     Obj/ObjExporter.cpp)
+
+  ADD_ASSIMP_IMPORTER( REX
+    REX/RexExporter.h
+    REX/RexExporter.cpp)
 
   ADD_ASSIMP_EXPORTER( OPENGEX
     OpenGEX/OpenGEXExporter.cpp
