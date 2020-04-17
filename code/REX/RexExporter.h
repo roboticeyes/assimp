@@ -50,6 +50,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <memory>
 #include <map>
+#include <sstream>
+#include <libopenrex/rex.h>
 
 #ifdef _WIN32
 #define fopen_rex( file, filename, mode ) \
@@ -78,14 +80,125 @@ namespace rex
         ~RexExporter();
 
         void Start();
+        std::ostringstream mOutput;
 
     private:
-        void WriteHeader();
+        struct TriangleVertex {
+            TriangleVertex()
+            : vp()
+            , vn()
+            , vt()
+            , vc() {
+                // empty
+            }
+
+            // one-based, 0 means: 'does not exist'
+            unsigned int vp, vn, vt, vc;
+        };
+
+        struct Triangle {
+            std::vector<TriangleVertex> indices;
+        };
+
+
+        void WriteGeometryFile();
+        void WriteHeader(std::ostringstream &out);
         void WriteCoordinateSystemBlock();
+        void WriteAllDataBlocks();
+        void WriteDataBlock();
+        void WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId);
+        void WriteDataBlockMesh();
+
+        void AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat);
+        void AddNode(const aiNode* nd, const aiMatrix4x4& mParent);
+
 
     private:
         const aiScene *const m_Scene;
         std::shared_ptr<FileWrapper> m_File;
+
+    public:
+        struct aiColorCompare {
+            bool operator() ( const aiColor3D& a, const aiColor3D& b ) const {
+                // color
+                if (a.r < b.r) return true;
+                if (a.r > b.r) return false;
+                if (a.g < b.g) return true;
+                if (a.g > b.g) return false;
+                if (a.b < b.b) return true;
+                if (a.b > b.b) return false;
+                return false;
+            }
+        };
+
+        struct aiVectorCompare {
+            bool operator() (const aiVector3D& a, const aiVector3D& b) const {
+                if(a.x < b.x) return true;
+                if(a.x > b.x) return false;
+                if(a.y < b.y) return true;
+                if(a.y > b.y) return false;
+                if(a.z < b.z) return true;
+                return false;
+            }
+        };
+
+        template <class T, class Compare = std::less<T>>
+        class indexMap {
+            int mNextIndex;
+            typedef std::map<T, int, Compare> dataType;
+            dataType vecMap;
+
+        public:
+            indexMap()
+            : mNextIndex(1) {
+                // empty
+            }
+
+            int getIndex(const T& key) {
+                typename dataType::iterator vertIt = vecMap.find(key);
+                // vertex already exists, so reference it
+                if(vertIt != vecMap.end()){
+                    return vertIt->second;
+                }
+                return vecMap[key] = mNextIndex++;
+            };
+
+            void getKeys( std::vector<T>& keys ) {
+                keys.resize(vecMap.size());
+                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
+                    keys[it->second-1] = it->first;
+                }
+            };
+
+            void getKeysAsFloat( std::vector<float>& keys ) {
+                keys.resize(vecMap.size() * 3);
+                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
+                    int index = (it->second-1) * 3;
+                    keys[index] = it->first.x;
+                    keys[index + 1] = it->first.y;
+                    keys[index + 2] = it->first.z;
+                }
+            };
+
+            size_t size() const {
+                return vecMap.size();
+            }
+        };
+
+//        indexMap<aiVector3D, aiVectorCompare> mVnMap, mVtMap, mVpMap;
+//        indexMap<aiColor3D, aiColorCompare> mVcMap;
+//        indexMap<vertexData, vertexDataCompare> mVpMap;
+        struct MeshInstance {
+            std::string name, matname;
+            std::vector<Triangle> triangles;
+            indexMap<aiVector3D, aiVectorCompare> vertices, normals, textureCoords;
+            indexMap<aiColor3D, aiColorCompare> colors;
+        };
+
+        std::vector<MeshInstance> mMeshes;
+
+        // this endl() doesn't flush() the stream
+        const std::string endl;
     };
 
     /***

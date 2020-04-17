@@ -64,6 +64,8 @@ static const uint32_t SRID (3876);
 static const uint32_t RESERVED_SIZE (42);
 static const unsigned char AUTH_NAME[5] = "EPSG";
 
+static const uint16_t DATA_TYPE_MESH = 3;
+
 static const uint8_t VERTEX_SIZE (12);
 static const uint8_t NORMAL_SIZE (12);
 static const uint8_t COLOR_SIZE (12);
@@ -113,17 +115,23 @@ void RexExporter::Start()
 {
     printf ("Starting REX exporter ...\n");
 
-    WriteHeader();
-    WriteCoordinateSystemBlock();
+    WriteGeometryFile();
+
+
+
+//    WriteHeader();
+//    WriteCoordinateSystemBlock();
+
+//    WriteAllDataBlocks();
 }
 
-void RexExporter::WriteHeader()
+void RexExporter::WriteHeader(std::ostringstream& out)
 {
     auto debugInfo = "FileHeader";
     char reserved[RESERVED_SIZE];
-    uint32_t crc32 = 0;
-    uint32_t numberOfDataBlocks = 0;
-    uint64_t sizeOfDataBlocks = 0;
+    uint32_t crc32 = 0;              //TODO
+    uint32_t numberOfDataBlocks = 0; //TODO
+    uint64_t sizeOfDataBlocks = 0;   //TODO
 
     ::fseek (m_File->ptr(), 0, SEEK_SET);
 
@@ -149,6 +157,119 @@ void RexExporter::WriteCoordinateSystemBlock()
     m_File->write (&offset, sizeof (float), 1, debugInfo);
     m_File->write (&offset, sizeof (float), 1, debugInfo);
 }
+
+void RexExporter::WriteAllDataBlocks()
+{
+
+}
+
+void RexExporter::WriteDataBlock()
+{
+//    WriteDataHeaderBlock();
+}
+
+void RexExporter::WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId)
+{
+    auto debugInfo = "DataHeaderBlock";
+
+    m_File->write (&type, sizeof (uint16_t), 1, debugInfo);
+    m_File->write (&version, sizeof (uint16_t), 1, debugInfo);
+    m_File->write (&dataBlockSize, sizeof (uint32_t), 1, debugInfo);
+    m_File->write (&dataId, sizeof (uint64_t), 1, debugInfo);
+}
+
+
+void RexExporter::WriteGeometryFile() {
+    WriteHeader(mOutput);
+//    if (!noMtl)
+//        mOutput << "mtllib "  << GetMaterialLibName() << endl << endl;
+
+    // collect mesh geometry
+    aiMatrix4x4 mBase;
+    AddNode(m_Scene->mRootNode, mBase);
+
+    // now write all mesh instances
+    for(MeshInstance& m : mMeshes) {
+        rex_mesh rexMesh;
+        rexMesh.lod = 0; //??
+        rexMesh.max_lod = 0; //??
+        sprintf(rexMesh.name, "%s", m.name.c_str()); //0-terminated?
+        rexMesh.nr_triangles = m.triangles.size();
+        rexMesh.nr_vertices = m.vertices.size();
+        rexMesh.material_id = 0;//
+
+        std::vector<float> vertices;
+        m.vertices.getKeysAsFloat(vertices);
+        rexMesh.positions = &vertices[0];
+
+
+    }
+
+}
+
+// ------------------------------------------------------------------------------------------------
+void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat) {
+    mMeshes.push_back(MeshInstance() );
+    MeshInstance& mesh = mMeshes.back();
+
+    mesh.name = std::string( name.data, name.length );
+
+    mesh.triangles.resize(m->mNumFaces);
+
+    for(unsigned int i = 0; i < m->mNumFaces; ++i) {
+        const aiFace& f = m->mFaces[i];
+
+        Triangle& triangle = mesh.triangles[i];
+
+        for(unsigned int a = 0; a < 3; ++a) {
+            const unsigned int idx = f.mIndices[a];
+
+            aiVector3D vert = mat * m->mVertices[idx];
+
+            if ( nullptr != m->mColors[ 0 ] ) {
+                aiColor4D col4 = m->mColors[ 0 ][ idx ];
+                triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(col4.r, col4.g, col4.b)});
+                triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(col4.r, col4.g, col4.b));
+            } else {
+                triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(0,0,0)});
+                triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(0,0,0));
+            }
+
+            if (m->mNormals) {
+                aiVector3D norm = aiMatrix3x3(mat) * m->mNormals[idx];
+                triangle.indices[a].vn = mesh.normals.getIndex(norm);
+            } else {
+                triangle.indices[a].vn = 0;
+            }
+
+            if ( m->mTextureCoords[ 0 ] ) {
+                triangle.indices[a].vt = mesh.textureCoords.getIndex(m->mTextureCoords[0][idx]);
+            } else {
+                triangle.indices[a].vt = 0;
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+void RexExporter::AddNode(const aiNode* nd, const aiMatrix4x4& mParent) {
+    const aiMatrix4x4& mAbs = mParent * nd->mTransformation;
+
+    aiMesh *cm( nullptr );
+    for(unsigned int i = 0; i < nd->mNumMeshes; ++i) {
+        cm = m_Scene->mMeshes[nd->mMeshes[i]];
+        if (nullptr != cm) {
+            AddMesh(cm->mName, m_Scene->mMeshes[nd->mMeshes[i]], mAbs);
+        } else {
+            AddMesh(nd->mName, m_Scene->mMeshes[nd->mMeshes[i]], mAbs);
+        }
+    }
+
+    for(unsigned int i = 0; i < nd->mNumChildren; ++i) {
+        AddNode(nd->mChildren[i], mAbs);
+    }
+}
+
 
 
 // ------------------------------------------------------------------------------------------------
