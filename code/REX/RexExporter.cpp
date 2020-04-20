@@ -180,7 +180,10 @@ void RexExporter::WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t
 
 
 void RexExporter::WriteGeometryFile() {
-    WriteHeader(mOutput);
+    printf("Write geometry file\n");
+
+    std::vector<rex_mesh> meshes;
+//    WriteHeader(mOutput);
 //    if (!noMtl)
 //        mOutput << "mtllib "  << GetMaterialLibName() << endl << endl;
 
@@ -188,6 +191,8 @@ void RexExporter::WriteGeometryFile() {
     aiMatrix4x4 mBase;
     AddNode(m_Scene->mRootNode, mBase);
 
+
+    printf("Found %d meshes\n", (int)mMeshes.size());
     // now write all mesh instances
     for(MeshInstance& m : mMeshes) {
         rex_mesh rexMesh;
@@ -198,12 +203,41 @@ void RexExporter::WriteGeometryFile() {
         rexMesh.nr_vertices = m.vertices.size();
         rexMesh.material_id = 0;//
 
+        // vertices
         std::vector<float> vertices;
         m.vertices.getKeysAsFloat(vertices);
         rexMesh.positions = &vertices[0];
 
+        // normals
+        std::vector<float> normals;
+        m.normals.getKeysAsFloat(normals);
+        rexMesh.normals = &normals[0];
 
+        // texture coords
+        std::vector<float> textureCoords;
+        m.textureCoords.getKeysAsFloat(textureCoords);
+        rexMesh.tex_coords = &textureCoords[0];
+
+        // material TODO
+        rexMesh.material_id = 0x7fffffffffffffffL;
+        meshes.push_back(rexMesh);
     }
+
+    struct rex_header *header = rex_header_create();
+
+    //TEST write only first mesh !!!!
+    long mesh_sz;
+    uint8_t *mesh_ptr = rex_block_write_mesh (0 /*id*/, header, &meshes[0], &mesh_sz);
+
+    long header_sz;
+    uint8_t *header_ptr = rex_header_write (header, &header_sz);
+
+    printf("header mesh data blocks after header write %d\n", header->nr_datablocks);
+
+    ::fseek (m_File->ptr(), 0, SEEK_SET);
+     m_File->write (&header_ptr, header_sz, 1, "writeHeader");
+
+     m_File->write (&mesh_ptr, mesh_sz, 1, "writeMesh");
 
 }
 
@@ -213,28 +247,35 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
     MeshInstance& mesh = mMeshes.back();
 
     mesh.name = std::string( name.data, name.length );
+    printf("add mesh %s\n", mesh.name.c_str());
 
     mesh.triangles.resize(m->mNumFaces);
+     printf("add mesh num faces %d\n", m->mNumFaces);
 
     for(unsigned int i = 0; i < m->mNumFaces; ++i) {
+        printf("add mesh i %d\n", i);
         const aiFace& f = m->mFaces[i];
 
         Triangle& triangle = mesh.triangles[i];
+        triangle.indices.resize(3);
 
         for(unsigned int a = 0; a < 3; ++a) {
             const unsigned int idx = f.mIndices[a];
 
             aiVector3D vert = mat * m->mVertices[idx];
 
+            printf("colors\n");
             if ( nullptr != m->mColors[ 0 ] ) {
                 aiColor4D col4 = m->mColors[ 0 ][ idx ];
                 triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(col4.r, col4.g, col4.b)});
                 triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(col4.r, col4.g, col4.b));
             } else {
+                printf("colors no color %d\n",(int)triangle.indices.size());
                 triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(0,0,0)});
                 triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(0,0,0));
             }
 
+            printf("normals\n");
             if (m->mNormals) {
                 aiVector3D norm = aiMatrix3x3(mat) * m->mNormals[idx];
                 triangle.indices[a].vn = mesh.normals.getIndex(norm);
@@ -242,6 +283,7 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
                 triangle.indices[a].vn = 0;
             }
 
+            printf("texture coords\n");
             if ( m->mTextureCoords[ 0 ] ) {
                 triangle.indices[a].vt = mesh.textureCoords.getIndex(m->mTextureCoords[0][idx]);
             } else {
@@ -254,6 +296,8 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
 // ------------------------------------------------------------------------------------------------
 void RexExporter::AddNode(const aiNode* nd, const aiMatrix4x4& mParent) {
     const aiMatrix4x4& mAbs = mParent * nd->mTransformation;
+
+    printf("add node\n");
 
     aiMesh *cm( nullptr );
     for(unsigned int i = 0; i < nd->mNumMeshes; ++i) {
