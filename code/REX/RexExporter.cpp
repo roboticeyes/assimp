@@ -116,13 +116,6 @@ void RexExporter::Start()
     printf ("Starting REX exporter ...\n");
 
     WriteGeometryFile();
-
-
-
-//    WriteHeader();
-//    WriteCoordinateSystemBlock();
-
-//    WriteAllDataBlocks();
 }
 
 void RexExporter::WriteHeader(std::ostringstream& out)
@@ -183,6 +176,13 @@ void RexExporter::WriteGeometryFile() {
     printf("Write geometry file\n");
 
     std::vector<rex_mesh> meshes;
+
+    struct MeshPtr{
+        uint8_t* mesh;
+        long size;
+    };
+
+    std::vector<MeshPtr> meshPtrs;
 //    WriteHeader(mOutput);
 //    if (!noMtl)
 //        mOutput << "mtllib "  << GetMaterialLibName() << endl << endl;
@@ -193,41 +193,105 @@ void RexExporter::WriteGeometryFile() {
 
 
     printf("Found %d meshes\n", (int)mMeshes.size());
+
+    struct rex_header *header = rex_header_create();
+    meshPtrs.resize(mMeshes.size());
+
     // now write all mesh instances
+    int i = 0;
     for(MeshInstance& m : mMeshes) {
+        MeshPtr meshPtr = meshPtrs.at(i);
         rex_mesh rexMesh;
+        rex_mesh_init(&rexMesh);
         rexMesh.lod = 0; //??
         rexMesh.max_lod = 0; //??
-        sprintf(rexMesh.name, "%s", m.name.c_str()); //0-terminated?
+        sprintf(rexMesh.name, "%s", m.name.c_str());
         rexMesh.nr_triangles = m.triangles.size();
         rexMesh.nr_vertices = m.vertices.size();
-        rexMesh.material_id = 0;//
+        printf("nr of vertices %d\n", rexMesh.nr_vertices);
 
         // vertices
         std::vector<float> vertices;
+        vertices.resize(rexMesh.nr_vertices * 3);
         m.vertices.getKeysAsFloat(vertices);
         rexMesh.positions = &vertices[0];
 
-        // normals
-        std::vector<float> normals;
-        m.normals.getKeysAsFloat(normals);
-        rexMesh.normals = &normals[0];
+        // normals werden selber gerechnet
+//        std::vector<float> normals;
+//        normals.resize(rexMesh.nr_vertices * 3);
+//        for (int i = 0; i < normals.size(); i++) {
+//            normals[i] = i + 0.2;
+//        }
+////        m.textureCoords.getKeysAsFloat(textureCoords);
+//        rexMesh.normals = &normals[0];
 
         // texture coords
         std::vector<float> textureCoords;
-        m.textureCoords.getKeysAsFloat(textureCoords);
+        textureCoords.resize(rexMesh.nr_vertices * 2);
+        for (int i = 0; i < textureCoords.size(); i++) {
+            textureCoords[i] = i + 0.5;
+        }
+//        m.textureCoords.getKeysAsFloat(textureCoords);
         rexMesh.tex_coords = &textureCoords[0];
+
+
+        // colors
+//        std::vector<float> colors;
+//        colors.resize(rexMesh.nr_vertices * 3);
+////        m.textureCoords.getKeysAsFloat(textureCoords);
+//        for (int i = 0; i < colors.size(); i++) {
+//            colors[i] = i + 0.7;
+//        }
+//        rexMesh.colors = &colors[0];
+
+        // triangles
+        std::vector<uint32_t> triangles;
+        getTriangleArray(m.triangles, triangles);
+        auto size = sizeof(uint32_t) * triangles.size();
+        rexMesh.triangles = (uint32_t*)malloc (size);
+//        printf("sizeof triangles %d, nr of triangles %d sizi %d\n", sizeof(triangles), (int)triangles.size(), sizeof(uint32_t) * triangles.size());
+        memcpy(rexMesh.triangles, &triangles[0], size);
+//        printf("fertig nr of triangles %d\n", rexMesh.nr_triangles);
+//        uint32_t *testi = rexMesh.triangles;
+//        for (auto i = 0; i < rexMesh.nr_triangles * 3; i++) {
+//            if (i % 3 == 0)
+//                printf("\n");
+//            printf("%d ", *testi);
+//            testi++;
+
+//        }
 
         // material TODO
         rexMesh.material_id = 0x7fffffffffffffffL;
         meshes.push_back(rexMesh);
+
+        long mesh_sz;
+//        uint8_t* mesh_ptr = rex_block_write_mesh (0 /*id*/, header, &rexMesh, &mesh_sz);
+        meshPtrs[i].mesh = rex_block_write_mesh (i /*id*/, header, &rexMesh, &mesh_sz);
+        meshPtrs[i].size = mesh_sz;
+        printf("SIUE %ld meshPtr %ld meshi %u\n", mesh_sz, meshPtrs[i].size, meshPtrs[i].mesh[0]);
+        i++;
     }
 
-    struct rex_header *header = rex_header_create();
+    printf("\n-------fertig nr of triangles %d\n", meshes[0].nr_triangles);
+    auto meshi = meshes[0];
+    uint32_t *testi2 = meshi.triangles;
+    for (auto i = 0; i < meshi.nr_triangles * 3; i++) {
+        if (i % 3 == 0)
+            printf("\n");
+        printf("%d ", *testi2);
+        testi2++;
+
+    }
+
+
 
     //TEST write only first mesh !!!!
-    long mesh_sz;
-    uint8_t *mesh_ptr = rex_block_write_mesh (0 /*id*/, header, &meshes[0], &mesh_sz);
+//    long mesh_sz;
+//    uint8_t *mesh_ptr = rex_block_write_mesh (0 /*id*/, header, &meshes[0], &mesh_sz);
+//    printf("header mesh data blocks mesh size %ld\n", mesh_sz);
+
+
 
     long header_sz;
     uint8_t *header_ptr = rex_header_write (header, &header_sz);
@@ -235,10 +299,24 @@ void RexExporter::WriteGeometryFile() {
     printf("header mesh data blocks after header write %d\n", header->nr_datablocks);
 
     ::fseek (m_File->ptr(), 0, SEEK_SET);
-     m_File->write (&header_ptr, header_sz, 1, "writeHeader");
+     m_File->write (header_ptr, header_sz, 1, "writeHeader");
 
-     m_File->write (&mesh_ptr, mesh_sz, 1, "writeMesh");
+     for (MeshPtr m : meshPtrs) {
+//         printf("write mesh %ld wups %u\n", m.size, m.mesh[0]);
+         m_File->write (m.mesh, m.size, 1, "writeMesh");
+     }
+}
 
+void RexExporter::getTriangleArray( const std::vector<Triangle>& triangles, std::vector<uint32_t>& triangleArray ) {
+    printf("Number of Triangles: %d\n", triangles.size());
+    triangleArray.resize(triangles.size() * 3);
+    for(auto i = 0; i < triangles.size(); i++){
+        Triangle t = triangles.at(i);
+        triangleArray[3 * i] = t.indices[0].vp;
+        triangleArray[3 * i + 1] = t.indices[1].vp;
+        triangleArray[3 * i + 2] = t.indices[2].vp;
+        printf("Triangle %d, A: %d, B: %d, C: %d\n", i, triangleArray[3 * i], triangleArray[3 * i + 1], triangleArray[3 * i + 2]);
+    }
 }
 
 // ------------------------------------------------------------------------------------------------

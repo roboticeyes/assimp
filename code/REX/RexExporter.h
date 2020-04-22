@@ -112,6 +112,7 @@ namespace rex
         void AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat);
         void AddNode(const aiNode* nd, const aiMatrix4x4& mParent);
 
+        void getTriangleArray(const std::vector<Triangle>& triangles, std::vector<uint32_t> &triangleArray );
 
     private:
         const aiScene *const m_Scene;
@@ -171,7 +172,7 @@ namespace rex
             };
 
             void getKeysAsFloat( std::vector<float>& keys ) {
-                keys.resize(vecMap.size() * 3);
+//                keys.resize(vecMap.size() * 3);
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
                     int index = (it->second-1) * 3;
                     keys[index] = it->first.x;
