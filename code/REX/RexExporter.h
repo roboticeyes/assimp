@@ -171,14 +171,14 @@ namespace rex
                 }
             };
 
-            void getKeysAsFloat( std::vector<float>& keys ) {
+            void getKeysAsFloatRex( std::vector<float>& keys ) {
 //                keys.resize(vecMap.size() * 3);
                 printf("TYPE %s\n", typeid(T).name() );
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
                     int index = (it->second) * 3;
                     keys[index] = it->first.x;
-                    keys[index + 1] = it->first.y;
-                    keys[index + 2] = it->first.z;
+                    keys[index + 1] = it->first.z;
+                    keys[index + 2] = -it->first.y;
                 }
             };
 
@@ -189,6 +189,16 @@ namespace rex
                     keys[index] = it->first.r;
                     keys[index + 1] = it->first.g;
                     keys[index + 2] = it->first.b;
+                }
+            };
+
+            void getTextureCoordsAsFloat( std::vector<float>& keys ) {
+            //                keys.resize(vecMap.size() * 3);
+                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
+                    int index = (it->second) * 3;
+                    keys[index] = it->first.u;
+                    keys[index + 1] = it->first.v;
+
                 }
             };
 

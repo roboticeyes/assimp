@@ -207,7 +207,7 @@ void RexExporter::WriteGeometryFile() {
         // vertices
         std::vector<float> vertices;
         vertices.resize(rexMesh.nr_vertices * 3);
-        m.vertices.getKeysAsFloat(vertices);
+        m.vertices.getKeysAsFloatRex(vertices);
         rexMesh.positions = &vertices[0];
 
         // normals werden selber gerechnet
