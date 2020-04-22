@@ -195,9 +195,9 @@ namespace rex
             void getTextureCoordsAsFloat( std::vector<float>& keys ) {
             //                keys.resize(vecMap.size() * 3);
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
-                    int index = (it->second) * 3;
-                    keys[index] = it->first.u;
-                    keys[index + 1] = it->first.v;
+                    int index = (it->second) * 2;
+                    keys[index] = it->first.x;
+                    keys[index + 1] = it->first.y;
 
                 }
             };
