@@ -151,7 +151,7 @@ namespace rex
 
         public:
             indexMap()
-            : mNextIndex(1) {
+            : mNextIndex(0) {
                 // empty
             }
 
@@ -167,17 +167,28 @@ namespace rex
             void getKeys( std::vector<T>& keys ) {
                 keys.resize(vecMap.size());
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
-                    keys[it->second-1] = it->first;
+                    keys[it->second] = it->first;
                 }
             };
 
             void getKeysAsFloat( std::vector<float>& keys ) {
 //                keys.resize(vecMap.size() * 3);
+                printf("TYPE %s\n", typeid(T).name() );
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
-                    int index = (it->second-1) * 3;
+                    int index = (it->second) * 3;
                     keys[index] = it->first.x;
                     keys[index + 1] = it->first.y;
                     keys[index + 2] = it->first.z;
+                }
+            };
+
+            void getColorsAsFloat( std::vector<float>& keys ) {
+            //                keys.resize(vecMap.size() * 3);
+                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
+                    int index = (it->second) * 3;
+                    keys[index] = it->first.r;
+                    keys[index + 1] = it->first.g;
+                    keys[index + 2] = it->first.b;
                 }
             };
 

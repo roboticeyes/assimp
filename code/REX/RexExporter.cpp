@@ -175,17 +175,12 @@ void RexExporter::WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t
 void RexExporter::WriteGeometryFile() {
     printf("Write geometry file\n");
 
-    std::vector<rex_mesh> meshes;
-
     struct MeshPtr{
         uint8_t* mesh;
         long size;
     };
 
     std::vector<MeshPtr> meshPtrs;
-//    WriteHeader(mOutput);
-//    if (!noMtl)
-//        mOutput << "mtllib "  << GetMaterialLibName() << endl << endl;
 
     // collect mesh geometry
     aiMatrix4x4 mBase;
@@ -200,15 +195,14 @@ void RexExporter::WriteGeometryFile() {
     // now write all mesh instances
     int i = 0;
     for(MeshInstance& m : mMeshes) {
-        MeshPtr meshPtr = meshPtrs.at(i);
         rex_mesh rexMesh;
         rex_mesh_init(&rexMesh);
+
         rexMesh.lod = 0; //??
         rexMesh.max_lod = 0; //??
         sprintf(rexMesh.name, "%s", m.name.c_str());
         rexMesh.nr_triangles = m.triangles.size();
         rexMesh.nr_vertices = m.vertices.size();
-        printf("nr of vertices %d\n", rexMesh.nr_vertices);
 
         // vertices
         std::vector<float> vertices;
@@ -217,98 +211,44 @@ void RexExporter::WriteGeometryFile() {
         rexMesh.positions = &vertices[0];
 
         // normals werden selber gerechnet
-//        std::vector<float> normals;
-//        normals.resize(rexMesh.nr_vertices * 3);
-//        for (int i = 0; i < normals.size(); i++) {
-//            normals[i] = i + 0.2;
-//        }
-////        m.textureCoords.getKeysAsFloat(textureCoords);
-//        rexMesh.normals = &normals[0];
 
         // texture coords
-        std::vector<float> textureCoords;
-        textureCoords.resize(rexMesh.nr_vertices * 2);
-        for (int i = 0; i < textureCoords.size(); i++) {
-            textureCoords[i] = i + 0.5;
-        }
+//        std::vector<float> textureCoords;
+//        textureCoords.resize(rexMesh.nr_vertices * 2);
 //        m.textureCoords.getKeysAsFloat(textureCoords);
-        rexMesh.tex_coords = &textureCoords[0];
+//        rexMesh.tex_coords = &textureCoords[0];
 
 
         // colors
-//        std::vector<float> colors;
-//        colors.resize(rexMesh.nr_vertices * 3);
-////        m.textureCoords.getKeysAsFloat(textureCoords);
-//        for (int i = 0; i < colors.size(); i++) {
-//            colors[i] = i + 0.7;
-//        }
-//        rexMesh.colors = &colors[0];
+        std::vector<float> colors;
+        colors.resize(rexMesh.nr_vertices * 3);
+        m.colors.getColorsAsFloat(colors);
+        rexMesh.colors = &colors[0];
 
         // triangles
         std::vector<uint32_t> triangles;
         getTriangleArray(m.triangles, triangles);
-        auto size = sizeof(uint32_t) * triangles.size();
-        rexMesh.triangles = (uint32_t*)malloc (size);
-//        printf("sizeof triangles %d, nr of triangles %d sizi %d\n", sizeof(triangles), (int)triangles.size(), sizeof(uint32_t) * triangles.size());
-        memcpy(rexMesh.triangles, &triangles[0], size);
-//        printf("fertig nr of triangles %d\n", rexMesh.nr_triangles);
-//        uint32_t *testi = rexMesh.triangles;
-//        for (auto i = 0; i < rexMesh.nr_triangles * 3; i++) {
-//            if (i % 3 == 0)
-//                printf("\n");
-//            printf("%d ", *testi);
-//            testi++;
-
-//        }
+        rexMesh.triangles = &triangles[0];
 
         // material TODO
         rexMesh.material_id = 0x7fffffffffffffffL;
-        meshes.push_back(rexMesh);
 
-        long mesh_sz;
-//        uint8_t* mesh_ptr = rex_block_write_mesh (0 /*id*/, header, &rexMesh, &mesh_sz);
-        meshPtrs[i].mesh = rex_block_write_mesh (i /*id*/, header, &rexMesh, &mesh_sz);
-        meshPtrs[i].size = mesh_sz;
-        printf("SIUE %ld meshPtr %ld meshi %u\n", mesh_sz, meshPtrs[i].size, meshPtrs[i].mesh[0]);
+        meshPtrs[i].mesh = rex_block_write_mesh (i /*id*/, header, &rexMesh, &meshPtrs[i].size);
         i++;
     }
 
-    printf("\n-------fertig nr of triangles %d\n", meshes[0].nr_triangles);
-    auto meshi = meshes[0];
-    uint32_t *testi2 = meshi.triangles;
-    for (auto i = 0; i < meshi.nr_triangles * 3; i++) {
-        if (i % 3 == 0)
-            printf("\n");
-        printf("%d ", *testi2);
-        testi2++;
-
-    }
-
-
-
-    //TEST write only first mesh !!!!
-//    long mesh_sz;
-//    uint8_t *mesh_ptr = rex_block_write_mesh (0 /*id*/, header, &meshes[0], &mesh_sz);
-//    printf("header mesh data blocks mesh size %ld\n", mesh_sz);
-
-
-
     long header_sz;
     uint8_t *header_ptr = rex_header_write (header, &header_sz);
-
-    printf("header mesh data blocks after header write %d\n", header->nr_datablocks);
 
     ::fseek (m_File->ptr(), 0, SEEK_SET);
      m_File->write (header_ptr, header_sz, 1, "writeHeader");
 
      for (MeshPtr m : meshPtrs) {
-//         printf("write mesh %ld wups %u\n", m.size, m.mesh[0]);
          m_File->write (m.mesh, m.size, 1, "writeMesh");
      }
 }
 
 void RexExporter::getTriangleArray( const std::vector<Triangle>& triangles, std::vector<uint32_t>& triangleArray ) {
-    printf("Number of Triangles: %d\n", triangles.size());
     triangleArray.resize(triangles.size() * 3);
     for(auto i = 0; i < triangles.size(); i++){
         Triangle t = triangles.at(i);
@@ -318,6 +258,8 @@ void RexExporter::getTriangleArray( const std::vector<Triangle>& triangles, std:
         printf("Triangle %d, A: %d, B: %d, C: %d\n", i, triangleArray[3 * i], triangleArray[3 * i + 1], triangleArray[3 * i + 2]);
     }
 }
+
+
 
 // ------------------------------------------------------------------------------------------------
 void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat) {
@@ -341,27 +283,30 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
             const unsigned int idx = f.mIndices[a];
 
             aiVector3D vert = mat * m->mVertices[idx];
+            printf("    VERT: %f, %f, %f\n", vert.x, vert.y, vert.z);
 
-            printf("colors\n");
+//            printf("colors\n");
             if ( nullptr != m->mColors[ 0 ] ) {
+                printf("Colors found\n");
                 aiColor4D col4 = m->mColors[ 0 ][ idx ];
                 triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(col4.r, col4.g, col4.b)});
                 triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(col4.r, col4.g, col4.b));
             } else {
-                printf("colors no color %d\n",(int)triangle.indices.size());
+                printf("No Colors found\n");
+//                printf("colors no color %d\n",(int)triangle.indices.size());
                 triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(0,0,0)});
                 triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(0,0,0));
             }
 
-            printf("normals\n");
-            if (m->mNormals) {
-                aiVector3D norm = aiMatrix3x3(mat) * m->mNormals[idx];
-                triangle.indices[a].vn = mesh.normals.getIndex(norm);
-            } else {
-                triangle.indices[a].vn = 0;
-            }
+//            printf("normals\n");
+//            if (m->mNormals) {
+//                aiVector3D norm = aiMatrix3x3(mat) * m->mNormals[idx];
+//                triangle.indices[a].vn = mesh.normals.getIndex(norm);
+//            } else {
+//                triangle.indices[a].vn = 0;
+//            }
 
-            printf("texture coords\n");
+//            printf("texture coords\n");
             if ( m->mTextureCoords[ 0 ] ) {
                 triangle.indices[a].vt = mesh.textureCoords.getIndex(m->mTextureCoords[0][idx]);
             } else {
@@ -369,6 +314,21 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
             }
         }
     }
+    printf("VERTICES\n");
+    std::vector<aiVector3D> vertices;
+    mesh.vertices.getKeys(vertices);
+    for (int i = 0; i < vertices.size(); i++) {
+        auto vertex = vertices[i];
+        printf(" X: %f, Y: %f, Z: %f\n", vertex.x, vertex.y, vertex.z);
+    }
+
+    printf("COLORS\n");
+//    std::vector<aiColor3D> colors;
+//    mesh.colors.getKeys(colors);
+//    for (int i = 0; i < colors.size(); i++) {
+//        auto color = colors[i];
+//        printf(" X: %f, Y: %f, Z: %f\n", color.r, color.g, color.b);
+//    }
 }
 
 // ------------------------------------------------------------------------------------------------
