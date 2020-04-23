@@ -108,11 +108,13 @@ namespace rex
         void WriteDataBlock();
         void WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId);
         void WriteDataBlockMesh();
+        void WriteMaterialBlock();
 
         void AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat);
         void AddNode(const aiNode* nd, const aiMatrix4x4& mParent);
 
         void getTriangleArray(const std::vector<Triangle>& triangles, std::vector<uint32_t> &triangleArray );
+        void getColorArray(const std::vector<aiColor3D>& colors, std::vector<float> &colorArray );
 
     private:
         const aiScene *const m_Scene;
@@ -157,11 +159,18 @@ namespace rex
 
             int getIndex(const T& key) {
                 typename dataType::iterator vertIt = vecMap.find(key);
+
+
                 // vertex already exists, so reference it
                 if(vertIt != vecMap.end()){
                     return vertIt->second;
                 }
+
                 return vecMap[key] = mNextIndex++;
+            };
+
+            int add(const T& key, const int index) {
+                return vecMap[key] = index;
             };
 
             void getKeys( std::vector<T>& keys ) {
@@ -172,8 +181,8 @@ namespace rex
             };
 
             void getKeysAsFloatRex( std::vector<float>& keys ) {
-//                keys.resize(vecMap.size() * 3);
-                printf("TYPE %s\n", typeid(T).name() );
+                printf("vertices vec map size %lu\n", vecMap.size());
+                keys.resize(vecMap.size() * 3);
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
                     int index = (it->second) * 3;
                     keys[index] = it->first.x;
@@ -183,7 +192,8 @@ namespace rex
             };
 
             void getColorsAsFloat( std::vector<float>& keys ) {
-            //                keys.resize(vecMap.size() * 3);
+                printf("vec map size %lu\n", vecMap.size());
+//                keys.resize(vecMap.size() * 3);
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
                     int index = (it->second) * 3;
                     keys[index] = it->first.r;
@@ -214,7 +224,8 @@ namespace rex
             std::string name, matname;
             std::vector<Triangle> triangles;
             indexMap<aiVector3D, aiVectorCompare> vertices, normals, textureCoords;
-            indexMap<aiColor3D, aiColorCompare> colors;
+          //  indexMap<aiColor3D, aiColorCompare> colors;
+            std::vector<aiColor3D> colors;
         };
 
         std::vector<MeshInstance> mMeshes;

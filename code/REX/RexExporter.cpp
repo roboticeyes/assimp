@@ -198,6 +198,7 @@ void RexExporter::WriteGeometryFile() {
     // now write all mesh instances
     int i = 0;
     for(MeshInstance& m : mMeshes) {
+        printf("Write mesh %d\n", i);
         rex_mesh rexMesh;
         rex_mesh_init(&rexMesh);
 
@@ -209,22 +210,21 @@ void RexExporter::WriteGeometryFile() {
 
         // vertices
         std::vector<float> vertices;
-        vertices.resize(rexMesh.nr_vertices * 3);
         m.vertices.getKeysAsFloatRex(vertices);
         rexMesh.positions = &vertices[0];
 
         // normals werden selber gerechnet
 
         // texture coords
-        std::vector<float> textureCoords;
-        textureCoords.resize(rexMesh.nr_vertices * 2);
-        m.textureCoords.getTextureCoordsAsFloat(textureCoords);
-        rexMesh.tex_coords = &textureCoords[0];
+//        std::vector<float> textureCoords;
+//        textureCoords.resize(rexMesh.nr_vertices * 2);
+//        m.textureCoords.getTextureCoordsAsFloat(textureCoords);
+//        rexMesh.tex_coords = &textureCoords[0];
 
         // colors
         std::vector<float> colors;
-        colors.resize(rexMesh.nr_vertices * 3);
-        m.colors.getColorsAsFloat(colors);
+//        colors.resize(rexMesh.nr_vertices * 3);
+        getColorArray(m.colors, colors);
         rexMesh.colors = &colors[0];
 
         // triangles
@@ -257,97 +257,110 @@ void RexExporter::getTriangleArray( const std::vector<Triangle>& triangles, std:
         triangleArray[3 * i] = t.indices[0].vp;
         triangleArray[3 * i + 1] = t.indices[1].vp;
         triangleArray[3 * i + 2] = t.indices[2].vp;
-        printf("Triangle %d, A: %d, B: %d, C: %d\n", i, triangleArray[3 * i], triangleArray[3 * i + 1], triangleArray[3 * i + 2]);
+//        printf("Triangle %d, A: %d, B: %d, C: %d\n", i, triangleArray[3 * i], triangleArray[3 * i + 1], triangleArray[3 * i + 2]);
     }
+    printf("Triangles fertig.\n");
+}
+
+void RexExporter::getColorArray( const std::vector<aiColor3D>& colors, std::vector<float>& colorArray ) {
+    colorArray.resize(colors.size() * 3);
+    for(auto i = 0; i < colors.size(); i++){
+        aiColor3D t = colors.at(i);
+        colorArray[3 * i] = t.r;
+        colorArray[3 * i + 1] = t.g;
+        colorArray[3 * i + 2] = t.b;
+//        printf("Triangle %d, A: %d, B: %d, C: %d\n", i, triangleArray[3 * i], triangleArray[3 * i + 1], triangleArray[3 * i + 2]);
+    }
+    printf("Colors fertig.\n");
 }
 
 void RexExporter::WriteMaterialBlock() {
-    for(unsigned int i = 0; i < pScene->mNumMaterials; ++i) {
-        const aiMaterial* const mat = pScene->mMaterials[i];
+//    for(unsigned int i = 0; i < m_Scene->mNumMaterials; ++i) {
+//        const aiMaterial* const mat = pScene->mMaterials[i];
 
-        int illum = 1;
-        mOutputMat << "newmtl " << GetMaterialName(i)  << endl;
+//        int illum = 1;
+//        mOutputMat << "newmtl " << GetMaterialName(i)  << endl;
 
-        aiColor4D c;
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_DIFFUSE,c)) {
-            mOutputMat << "Kd " << c.r << " " << c.g << " " << c.b << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_AMBIENT,c)) {
-            mOutputMat << "Ka " << c.r << " " << c.g << " " << c.b << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_SPECULAR,c)) {
-            mOutputMat << "Ks " << c.r << " " << c.g << " " << c.b << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_EMISSIVE,c)) {
-            mOutputMat << "Ke " << c.r << " " << c.g << " " << c.b << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_TRANSPARENT,c)) {
-            mOutputMat << "Tf " << c.r << " " << c.g << " " << c.b << endl;
-        }
+//        aiColor4D c;
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_DIFFUSE,c)) {
+//            mOutputMat << "Kd " << c.r << " " << c.g << " " << c.b << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_AMBIENT,c)) {
+//            mOutputMat << "Ka " << c.r << " " << c.g << " " << c.b << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_SPECULAR,c)) {
+//            mOutputMat << "Ks " << c.r << " " << c.g << " " << c.b << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_EMISSIVE,c)) {
+//            mOutputMat << "Ke " << c.r << " " << c.g << " " << c.b << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_TRANSPARENT,c)) {
+//            mOutputMat << "Tf " << c.r << " " << c.g << " " << c.b << endl;
+//        }
 
-        ai_real o;
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_OPACITY,o)) {
-            mOutputMat << "d " << o << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_REFRACTI,o)) {
-            mOutputMat << "Ni " << o << endl;
-        }
+//        ai_real o;
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_OPACITY,o)) {
+//            mOutputMat << "d " << o << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_REFRACTI,o)) {
+//            mOutputMat << "Ni " << o << endl;
+//        }
 
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_SHININESS,o) && o) {
-            mOutputMat << "Ns " << o << endl;
-            illum = 2;
-        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_SHININESS,o) && o) {
+//            mOutputMat << "Ns " << o << endl;
+//            illum = 2;
+//        }
 
-        mOutputMat << "illum " << illum << endl;
+//        mOutputMat << "illum " << illum << endl;
 
-        aiString s;
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0),s)) {
-            mOutputMat << "map_Kd " << s.data << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_AMBIENT(0),s)) {
-            mOutputMat << "map_Ka " << s.data << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0),s)) {
-            mOutputMat << "map_Ks " << s.data << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_SHININESS(0),s)) {
-            mOutputMat << "map_Ns " << s.data << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_OPACITY(0),s)) {
-            mOutputMat << "map_d " << s.data << endl;
-        }
-        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0),s) || AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_NORMALS(0),s)) {
-            // implementations seem to vary here, so write both variants
-            mOutputMat << "bump " << s.data << endl;
-            mOutputMat << "map_bump " << s.data << endl;
-        }
+//        aiString s;
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0),s)) {
+//            mOutputMat << "map_Kd " << s.data << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_AMBIENT(0),s)) {
+//            mOutputMat << "map_Ka " << s.data << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0),s)) {
+//            mOutputMat << "map_Ks " << s.data << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_SHININESS(0),s)) {
+//            mOutputMat << "map_Ns " << s.data << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_OPACITY(0),s)) {
+//            mOutputMat << "map_d " << s.data << endl;
+//        }
+//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0),s) || AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_NORMALS(0),s)) {
+//            // implementations seem to vary here, so write both variants
+//            mOutputMat << "bump " << s.data << endl;
+//            mOutputMat << "map_bump " << s.data << endl;
+//        }
 
-        mOutputMat << endl;
-    }
+//        mOutputMat << endl;
+//    }
 
 
 
 
     // write material
-    struct rex_material_standard mat =
-    {
-        .ka_red = 0,
-        .ka_green = 0,
-        .ka_blue = 0,
-        .ka_textureId = 0,
-        .kd_red = 1,
-        .kd_green = 0,
-        .kd_blue = 0,
-        .kd_textureId = 0,
-        .ks_red = 0,
-        .ks_green = 0,
-        .ks_blue = 0,
-        .ks_textureId = 0,
-        .ns = 0,
-        .alpha = 1
-    };
-    long mat_sz;
-    uint8_t *mat_ptr = rex_block_write_material (1 /*id*/, header, &mat, &mat_sz);
+//    struct rex_material_standard mat =
+//    {
+//        .ka_red = 0,
+//        .ka_green = 0,
+//        .ka_blue = 0,
+//        .ka_textureId = 0,
+//        .kd_red = 1,
+//        .kd_green = 0,
+//        .kd_blue = 0,
+//        .kd_textureId = 0,
+//        .ks_red = 0,
+//        .ks_green = 0,
+//        .ks_blue = 0,
+//        .ks_textureId = 0,
+//        .ns = 0,
+//        .alpha = 1
+//    };
+//    long mat_sz;
+//    uint8_t *mat_ptr = rex_block_write_material (1 /*id*/, header, &mat, &mat_sz);
 }
 
 
@@ -363,7 +376,7 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
      printf("add mesh num faces %d\n", m->mNumFaces);
 
     for(unsigned int i = 0; i < m->mNumFaces; ++i) {
-        printf("add mesh i %d\n", i);
+//        printf("add mesh i %d\n", i);
         const aiFace& f = m->mFaces[i];
 
         Triangle& triangle = mesh.triangles[i];
@@ -373,14 +386,25 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
             const unsigned int idx = f.mIndices[a];
 
             aiVector3D vert = mat * m->mVertices[idx];
+            int index;
             if ( nullptr != m->mColors[ 0 ] ) {
-                printf("Colors found\n");
+//                printf("Colors found\n");
                 aiColor4D col4 = m->mColors[ 0 ][ idx ];
-                triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(col4.r, col4.g, col4.b)});
-                triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(col4.r, col4.g, col4.b));
+                index = mesh.vertices.getIndex(vert);//{vert, aiColor3D(col4.r, col4.g, col4.b)});
+                triangle.indices[a].vp = index;
+                if (index == mesh.colors.size()) {
+                    mesh.colors.push_back(aiColor3D(col4.r, col4.g, col4.b));
+                }
+//                mesh.colors.add(aiColor3D(col4.r, col4.g, col4.b), index);
+//                triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(col4.r, col4.g, col4.b));
             } else {
-                triangle.indices[a].vp = mesh.vertices.getIndex(vert);//{vert, aiColor3D(0,0,0)});
-                triangle.indices[a].vc = mesh.colors.getIndex(aiColor3D(0,0,0));
+                index = mesh.vertices.getIndex(vert);//{vert, aiColor3D(0,0,0)});
+                triangle.indices[a].vp = index;
+                if (index == mesh.colors.size()) {
+                    mesh.colors.push_back(aiColor3D(0, 0, 0));
+                }
+//                mesh.colors.add(aiColor3D(0,0,0), index);
+//                triangle.indices[a].vc = mesh.colors.getIndex();
             }
 
             if ( m->mTextureCoords[ 0 ] ) {
@@ -390,21 +414,24 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
             }
         }
     }
-    printf("VERTICES\n");
+
     std::vector<aiVector3D> vertices;
     mesh.vertices.getKeys(vertices);
-    for (int i = 0; i < vertices.size(); i++) {
-        auto vertex = vertices[i];
-        printf(" X: %f, Y: %f, Z: %f\n", vertex.x, vertex.y, vertex.z);
-    }
+//    for (int i = 0; i < vertices.size(); i++) {
+//        auto vertex = vertices[i];
+//        printf(" X: %f, Y: %f, Z: %f\n", vertex.x, vertex.y, vertex.z);
+//    }
+        printf("VERTICES %lu\n", vertices.size());
 
-    printf("COLORS\n");
+
 //    std::vector<aiColor3D> colors;
 //    mesh.colors.getKeys(colors);
 //    for (int i = 0; i < colors.size(); i++) {
 //        auto color = colors[i];
-//        printf(" X: %f, Y: %f, Z: %f\n", color.r, color.g, color.b);
+//        printf("Color %d R: %f, G: %f, B: %f\n", i, color.r, color.g, color.b);
 //    }
+      printf("COLORS %lu\n", mesh.colors.size());
+
 }
 
 // ------------------------------------------------------------------------------------------------
