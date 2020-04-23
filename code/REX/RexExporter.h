@@ -86,35 +86,49 @@ namespace rex
         struct TriangleVertex {
             TriangleVertex()
             : vp()
-            , vn()
-            , vt()
-            , vc() {
+            , vt() {
                 // empty
             }
 
             // one-based, 0 means: 'does not exist'
-            unsigned int vp, vn, vt, vc;
+            unsigned int vp, vt;
         };
 
         struct Triangle {
             std::vector<TriangleVertex> indices;
         };
 
+        struct vertexData {
+            aiVector3D vp;
+            aiColor3D vc;
+        };
+
+        struct MeshPtr{
+            uint8_t* mesh;
+            long size;
+        };
+
+        struct MaterialPtr{
+            uint8_t* material;
+            long size;
+        };
 
         void WriteGeometryFile();
-        void WriteHeader(std::ostringstream &out);
-        void WriteCoordinateSystemBlock();
-        void WriteAllDataBlocks();
-        void WriteDataBlock();
-        void WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId);
-        void WriteDataBlockMesh();
-        void WriteMaterialBlock();
+        void WriteMeshes(rex_header *header, std::vector<MeshPtr> &meshPtrs);
+//        void WriteHeader(std::ostringstream &out);
+//        void WriteCoordinateSystemBlock();
+//        void WriteAllDataBlocks();
+//        void WriteDataBlock();
+//        void WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId);
+//        void WriteDataBlockMesh();
+        void WriteMaterials(rex_header *header, std::vector<MaterialPtr> &materialPtrs);
 
         void AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat);
         void AddNode(const aiNode* nd, const aiMatrix4x4& mParent);
 
         void getTriangleArray(const std::vector<Triangle>& triangles, std::vector<uint32_t> &triangleArray );
-        void getColorArray(const std::vector<aiColor3D>& colors, std::vector<float> &colorArray );
+        void getVertexArray( const std::vector<aiVector3D> vector, std::vector<float>& vectorArray );
+        void getColorArray( const std::vector<aiColor3D> vector, std::vector<float>& colorArray );
 
     private:
         const aiScene *const m_Scene;
@@ -130,6 +144,27 @@ namespace rex
                 if (a.g > b.g) return false;
                 if (a.b < b.b) return true;
                 if (a.b > b.b) return false;
+                return false;
+            }
+        };
+
+        struct vertexDataCompare {
+            bool operator() ( const vertexData& a, const vertexData& b ) const {
+                // position
+                if (a.vp.x < b.vp.x) return true;
+                if (a.vp.x > b.vp.x) return false;
+                if (a.vp.y < b.vp.y) return true;
+                if (a.vp.y > b.vp.y) return false;
+                if (a.vp.z < b.vp.z) return true;
+                if (a.vp.z > b.vp.z) return false;
+
+                // color
+                if (a.vc.r < b.vc.r) return true;
+                if (a.vc.r > b.vc.r) return false;
+                if (a.vc.g < b.vc.g) return true;
+                if (a.vc.g > b.vc.g) return false;
+                if (a.vc.b < b.vc.b) return true;
+                if (a.vc.b > b.vc.b) return false;
                 return false;
             }
         };
@@ -180,58 +215,34 @@ namespace rex
                 }
             };
 
-            void getKeysAsFloatRex( std::vector<float>& keys ) {
-                printf("vertices vec map size %lu\n", vecMap.size());
-                keys.resize(vecMap.size() * 3);
-                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
-                    int index = (it->second) * 3;
-                    keys[index] = it->first.x;
-                    keys[index + 1] = it->first.z;
-                    keys[index + 2] = -it->first.y;
-                }
-            };
 
-            void getColorsAsFloat( std::vector<float>& keys ) {
-                printf("vec map size %lu\n", vecMap.size());
-//                keys.resize(vecMap.size() * 3);
-                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
-                    int index = (it->second) * 3;
-                    keys[index] = it->first.r;
-                    keys[index + 1] = it->first.g;
-                    keys[index + 2] = it->first.b;
-                }
-            };
+//            void getTextureCoordsAsFloat( std::vector<float>& keys ) {
+//            //                keys.resize(vecMap.size() * 3);
+//                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
+//                    int index = (it->second) * 2;
+//                    keys[index] = it->first.x;
+//                    keys[index + 1] = it->first.y;
 
-            void getTextureCoordsAsFloat( std::vector<float>& keys ) {
-            //                keys.resize(vecMap.size() * 3);
-                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
-                    int index = (it->second) * 2;
-                    keys[index] = it->first.x;
-                    keys[index + 1] = it->first.y;
-
-                }
-            };
+//                }
+//            };
 
             size_t size() const {
                 return vecMap.size();
             }
         };
 
-//        indexMap<aiVector3D, aiVectorCompare> mVnMap, mVtMap, mVpMap;
-//        indexMap<aiColor3D, aiColorCompare> mVcMap;
-//        indexMap<vertexData, vertexDataCompare> mVpMap;
+
         struct MeshInstance {
             std::string name, matname;
             std::vector<Triangle> triangles;
-            indexMap<aiVector3D, aiVectorCompare> vertices, normals, textureCoords;
-          //  indexMap<aiColor3D, aiColorCompare> colors;
-            std::vector<aiColor3D> colors;
+//            indexMap<aiVector3D, aiVectorCompare> vertices, normals, textureCoords;
+            indexMap<aiVector3D, aiVectorCompare> textureCoords;
+//            indexMap<aiColor3D, aiColorCompare> colors;
+            indexMap<vertexData, vertexDataCompare> verticesWithColors;
         };
 
         std::vector<MeshInstance> mMeshes;
 
-        // this endl() doesn't flush() the stream
-        const std::string endl;
     };
 
     /***
