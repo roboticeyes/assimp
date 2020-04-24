@@ -52,6 +52,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assimp/scene.h>
 #include <memory>
 #include <string>
+#include <iostream>
+#include <fstream>
+#include <algorithm>
 
 using namespace Assimp;
 using namespace rex;
@@ -121,16 +124,28 @@ void RexExporter::Start()
 void RexExporter::WriteGeometryFile() {
     printf("Write geometry file\n");
 
-    std::vector<MeshPtr> meshPtrs;
-    std::vector<MaterialPtr> materialPtrs;
+    std::vector<DataPtr> meshPtrs;
+    std::vector<DataPtr> materialPtrs;
+    std::vector<DataPtr> imagePtrs;
 
     rex_header *header = rex_header_create();
+    int startBlockIndex = 0;
+    int startBlockMaterials = 0;
 
-    // get materials
-    WriteMaterials(header, materialPtrs);
+    // get materials and textures
+    GetMaterialsAndTextures();
+
+    // write texture files
+    WriteImages(header, startBlockIndex, imagePtrs);
+    startBlockIndex += (int)imagePtrs.size();
+    startBlockMaterials = startBlockIndex;
+
+    // write materials
+    WriteMaterials(header, startBlockIndex, materialPtrs);
+    startBlockIndex += (int)materialPtrs.size();
 
     // get meshes
-    WriteMeshes(header, meshPtrs);
+    WriteMeshes(header, startBlockIndex, startBlockMaterials, meshPtrs);
 
     long header_sz;
     uint8_t *header_ptr = rex_header_write (header, &header_sz);
@@ -138,16 +153,69 @@ void RexExporter::WriteGeometryFile() {
     ::fseek (m_File->ptr(), 0, SEEK_SET);
      m_File->write (header_ptr, header_sz, 1, "writeHeader");
 
-     for (MaterialPtr m : materialPtrs) {
-         m_File->write (m.material, m.size, 1, "writeMaterial");
+     // write images (texture files)
+     for (DataPtr m : imagePtrs) {
+         m_File->write (m.data, m.size, 1, "writeImage");
+         FREE (m.data);
      }
 
-     for (MeshPtr m : meshPtrs) {
-         m_File->write (m.mesh, m.size, 1, "writeMesh");
+     // write materials
+     for (DataPtr m : materialPtrs) {
+         m_File->write (m.data, m.size, 1, "writeMaterial");
+         FREE (m.data);
      }
+
+     // write meshes
+     for (DataPtr m : meshPtrs) {
+         m_File->write (m.data, m.size, 1, "writeMesh");
+         FREE (m.data)
+     }
+
+     FREE (header_ptr);
 }
 
-void RexExporter::WriteMeshes(rex_header *header, std::vector<MeshPtr> &meshPtrs) {
+void RexExporter::WriteImages(rex_header *header, int startId, std::vector<DataPtr> &imagePtrs) {
+    imagePtrs.resize(mTextureMap.size());
+
+    printf("Found %zu texture files\n", mTextureMap.size());
+
+    int i = 0;
+    std::vector<std::string> names;
+    mTextureMap.getKeys(names);
+
+    for (std::string& fileName : names) {
+        rex_image img;
+
+        // load texture file
+        long size;
+        std::string testFileWithPath = "/Users/lisa/workspace/rex/objSamples/haus/" + fileName; //!!!!!! find path
+        img.data = read_file_binary(testFileWithPath.c_str(), &size);
+
+        if (img.data == NULL) {
+            printf("data null filename %s\n", testFileWithPath.c_str());
+        }
+        img.sz = (uint64_t)size;
+
+        auto dotPos = fileName.rfind(".");
+        auto fileExt = fileName.substr(dotPos + 1, fileName.size() - dotPos - 1);
+
+        // convert file extension to lower case
+        //std::transform(fileExt.begin(), fileExt.end(), fileExt.begin(), std::tolower);
+
+        if (fileExt.compare("png") == 0) {
+            img.compression = Png;
+        } else if ((fileExt.compare("jpeg") == 0) || (fileExt.compare("jpg") == 0)) {
+            img.compression = Jpeg;
+        } else {
+            img.compression = Raw24;
+        }
+
+        imagePtrs[i].data = rex_block_write_image (startId + i /*id*/, header, &img, &imagePtrs[i].size);
+        i++;
+    }
+}
+
+void RexExporter::WriteMeshes(rex_header *header, int startId, int startMaterials, std::vector<DataPtr> &meshPtrs) {
     // collect mesh geometry
     aiMatrix4x4 mBase;
     AddNode(m_Scene->mRootNode, mBase);
@@ -174,18 +242,25 @@ void RexExporter::WriteMeshes(rex_header *header, std::vector<MeshPtr> &meshPtrs
         m.verticesWithColors.getKeys(verticesWithColors);
         std::vector<aiVector3D> vertices;
         std::vector<aiColor3D> colors;
+        std::vector<aiVector3D> textureCoords;
         for ( const vertexData& v : verticesWithColors ) {
             vertices.push_back(v.vp);
             colors.push_back(v.vc);
+            textureCoords.push_back(v.vt);
         }
         std::vector<float> vertexArray;
         std::vector<float> colorArray;
+        std::vector<float> textureCoordArray;
 
         getVertexArray(vertices, vertexArray);
         getColorArray(colors, colorArray);
+        getTextureCoordArray(textureCoords, textureCoordArray);
 
         rexMesh.positions = &vertexArray[0];
-        rexMesh.colors = &colorArray[0];
+        if (m.useColors)
+            rexMesh.colors = &colorArray[0];
+        rexMesh.tex_coords = &textureCoordArray[0];
+
 
         // triangles
         std::vector<uint32_t> triangles;
@@ -193,9 +268,9 @@ void RexExporter::WriteMeshes(rex_header *header, std::vector<MeshPtr> &meshPtrs
         rexMesh.triangles = &triangles[0];
 
         // material
-        rexMesh.material_id = m.materialId;//0x7fffffffffffffffL;
+        rexMesh.material_id = startMaterials + m.materialId;
+        meshPtrs[i].data = rex_block_write_mesh (startId + i /*id*/, header, &rexMesh, &meshPtrs[i].size);
 
-        meshPtrs[i].mesh = rex_block_write_mesh (i /*id*/, header, &rexMesh, &meshPtrs[i].size);
         i++;
     }
 }
@@ -218,6 +293,16 @@ void RexExporter::getColorArray( const std::vector<aiColor3D> vector, std::vecto
         colorArray[index] = vector[i].r;
         colorArray[index + 1] = vector[i].g;
         colorArray[index + 2] = vector[i].b;
+    }
+}
+
+void RexExporter::getTextureCoordArray(const std::vector<aiVector3D> vector, std::vector<float>& textureCoordArray ) {
+    textureCoordArray.resize(vector.size() * 2);
+
+    for (auto i = 0; i < vector.size(); i++) {
+        int index = i * 2;
+        textureCoordArray[index] = vector[i].x;
+        textureCoordArray[index + 1] = vector[i].y;
     }
 }
 
@@ -249,10 +334,26 @@ std::string RexExporter::GetMaterialName(unsigned int index) {
     return "$Material_" + std::string(number);
 }
 
-void RexExporter::WriteMaterials(rex_header *header, std::vector<MaterialPtr> &materialPtrs) {
-    materialPtrs.resize(m_Scene->mNumMaterials);
+// ------------------------------------------------------------------------------------------------
+void RexExporter::WriteMaterials(rex_header *header, int startId, std::vector<DataPtr> &materialPtrs) {
+    materialPtrs.resize(mMaterials.size());
+    for(unsigned int i = 0; i < mMaterials.size(); ++i) {
+        materialPtrs[i].data = rex_block_write_material (startId + i /*id*/, header, &mMaterials[i], &materialPtrs[i].size);
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+void RexExporter::GetMaterialsAndTextures() {
+
+    bool embeddedTextures = (m_Scene->mNumTextures > 0);
+    if (embeddedTextures) {
+        printf("Embeddeed textures used.\n");
+    } else {
+        printf("No embeddeed textures used.\n");
+    }
 
     printf("Found %d materials\n", m_Scene->mNumMaterials);
+    mMaterials.resize(m_Scene->mNumMaterials);
     for(unsigned int i = 0; i < m_Scene->mNumMaterials; ++i) {
         const aiMaterial* const mat = m_Scene->mMaterials[i];
 
@@ -262,51 +363,60 @@ void RexExporter::WriteMaterials(rex_header *header, std::vector<MaterialPtr> &m
         rexMat.ns = 0;
 
         aiColor4D c;
+        aiString s;
         if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_DIFFUSE,c)) {
             rexMat.kd_red = c.r;
             rexMat.kd_green = c.g;
             rexMat.kd_blue = c.b;
-//            mat.kd_textureId = ?
+            rexMat.kd_textureId = 0x7fffffffffffffffL;
+            if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0),s)) {
+                // path to texture file or index if texture is embedded
+                if (!embeddedTextures) {
+                    rexMat.kd_textureId = mTextureMap.getIndex(s.data);
+                } else {
+                    // TODO embedded texture
+                }
+            }
         }
         if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_AMBIENT,c)) {
             rexMat.ka_red = c.r;
             rexMat.ka_green = c.g;
             rexMat.ka_blue = c.b;
-//            mat.ka_textureId = ?
+            rexMat.ka_textureId = 0x7fffffffffffffffL;
+            if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_AMBIENT(0),s)) {
+                // path to texture file or index if texture is embedded
+                if (!embeddedTextures) {
+                    rexMat.ka_textureId = mTextureMap.getIndex(s.data);
+                } else {
+                    // TODO embedded texture
+                }
+            }
         }
         if(AI_SUCCESS == mat->Get(AI_MATKEY_COLOR_SPECULAR,c)) {
             rexMat.ks_red = c.r;
             rexMat.ks_green = c.g;
             rexMat.ks_blue = c.b;
-//            mat.ks_textureId = ?
+            rexMat.ks_textureId = 0x7fffffffffffffffL;
+            if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0),s)) {
+                if (!embeddedTextures) {
+                    rexMat.ks_textureId = mTextureMap.getIndex(s.data);
+                } else {
+                    // TODO embedded texture
+                }
+            }
         }
 
-//        aiString s;
-//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0),s)) {
-//            mOutputMat << "map_Kd " << s.data << endl;
-//        }
-//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_AMBIENT(0),s)) {
-//            mOutputMat << "map_Ka " << s.data << endl;
-//        }
-//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0),s)) {
-//            mOutputMat << "map_Ks " << s.data << endl;
-//        }
-//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_SHININESS(0),s)) {
-//            mOutputMat << "map_Ns " << s.data << endl;
-//        }
-//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_OPACITY(0),s)) {
-//            mOutputMat << "map_d " << s.data << endl;
-//        }
-//        if(AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_HEIGHT(0),s) || AI_SUCCESS == mat->Get(AI_MATKEY_TEXTURE_NORMALS(0),s)) {
-//            // implementations seem to vary here, so write both variants
-//            mOutputMat << "bump " << s.data << endl;
-//            mOutputMat << "map_bump " << s.data << endl;
-//        }
-
-        materialPtrs[i].material = rex_block_write_material (i /*id*/, header, &rexMat, &materialPtrs[i].size);
+        ai_real o;
+        if(AI_SUCCESS == mat->Get(AI_MATKEY_OPACITY,o)) {
+            rexMat.alpha = o;
+        }
+        if(AI_SUCCESS == mat->Get(AI_MATKEY_SHININESS,o) && o) {
+            rexMat.ns = o;
+        }
+        mMaterials[i] = rexMat;
     }
+    printf("Found %d textures\n", mTextureMap.size());
 }
-
 
 // ------------------------------------------------------------------------------------------------
 void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat) {
@@ -314,14 +424,30 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
     MeshInstance& mesh = mMeshes.back();
 
     mesh.name = std::string( name.data, name.length );
-    mesh.matname = GetMaterialName(m->mMaterialIndex);  //??? needed?
     mesh.materialId = m->mMaterialIndex;
-    mesh.triangles.resize(m->mNumFaces);
 
+    // find number of faces which are triangles
+    int meshSize = 0;
+    for(unsigned int i = 0; i < m->mNumFaces; ++i) {
+        if (m->mFaces[i].mNumIndices == 3) {
+            meshSize++;
+        }
+    }
+
+    mesh.triangles.resize(meshSize);
+    mesh.useColors = (nullptr != m->mColors[ 0 ]);
+
+    int triangleIndex = 0;
     for(unsigned int i = 0; i < m->mNumFaces; ++i) {
         const aiFace& f = m->mFaces[i];
 
-        Triangle& triangle = mesh.triangles[i];
+        if (f.mNumIndices != 3) {
+            // TODO no triangle - add line or point
+            continue;
+        }
+
+        Triangle& triangle = mesh.triangles[triangleIndex];
+        triangleIndex++;
         triangle.indices.resize(3);
 
         for(unsigned int a = 0; a < 3; ++a) {
@@ -329,18 +455,28 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
 
             aiVector3D vert = mat * m->mVertices[idx];
 
-            if ( nullptr != m->mColors[ 0 ] ) {
+            if ( mesh.useColors ) {
                 aiColor4D col4 = m->mColors[ 0 ][ idx ];
-                triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(col4.r, col4.g, col4.b)});
+//                triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(col4.r, col4.g, col4.b)});
+                if ( m->mTextureCoords[ 0 ] ) {
+                    triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(col4.r, col4.g, col4.b), m->mTextureCoords[0][idx]});
+                } else {
+                     triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(col4.r, col4.g, col4.b), aiVector3D(0,0,0)}); //????
+                }
             } else {
-                triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(0,0,0)});
+//                triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(0,0,0)});
+                if ( m->mTextureCoords[ 0 ] ) {
+                    triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(0,0,0), m->mTextureCoords[0][idx]});
+                } else {
+                     triangle.indices[a].vp = mesh.verticesWithColors.getIndex({vert, aiColor3D(0,0,0), aiVector3D(0,0,0)}); //????
+                }
             }
 
-            if ( m->mTextureCoords[ 0 ] ) {
-                triangle.indices[a].vt = mesh.textureCoords.getIndex(m->mTextureCoords[0][idx]);
-            } else {
-                triangle.indices[a].vt = 0;
-            }
+//            if ( m->mTextureCoords[ 0 ] ) {
+//                triangle.indices[a].vt = mesh.textureCoords.getIndex(m->mTextureCoords[0][idx]);
+//            } else {
+//                triangle.indices[a].vt = 0;
+//            }
         }
     }
 

@@ -101,6 +101,7 @@ namespace rex
         struct vertexData {
             aiVector3D vp;
             aiColor3D vc;
+            aiVector3D vt;
         };
 
         struct MeshPtr{
@@ -113,16 +114,28 @@ namespace rex
             long size;
         };
 
+        struct ImagePtr{
+            uint8_t* image;
+            long size;
+        };
+
+        struct DataPtr{
+            uint8_t* data;
+            long size;
+        };
+
         void WriteGeometryFile();
-        void WriteMeshes(rex_header *header, std::vector<MeshPtr> &meshPtrs);
+        void WriteMeshes(rex_header *header, int startId, int startMaterials, std::vector<DataPtr> &meshPtrs);
+        void WriteImages(rex_header *header, int startId, std::vector<DataPtr> &meshPtrs);
 //        void WriteHeader(std::ostringstream &out);
 //        void WriteCoordinateSystemBlock();
 //        void WriteAllDataBlocks();
 //        void WriteDataBlock();
 //        void WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId);
 //        void WriteDataBlockMesh();
-        void WriteMaterials(rex_header *header, std::vector<MaterialPtr> &materialPtrs);
+        void WriteMaterials(rex_header *header, int startId, std::vector<DataPtr> &materialPtrs);
         std::string GetMaterialName(unsigned int index);
+        void GetMaterialsAndTextures();
 
         void AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat);
         void AddNode(const aiNode* nd, const aiMatrix4x4& mParent);
@@ -130,6 +143,7 @@ namespace rex
         void getTriangleArray(const std::vector<Triangle>& triangles, std::vector<uint32_t> &triangleArray );
         void getVertexArray( const std::vector<aiVector3D> vector, std::vector<float>& vectorArray );
         void getColorArray( const std::vector<aiColor3D> vector, std::vector<float>& colorArray );
+        void getTextureCoordArray( const std::vector<aiVector3D> vector, std::vector<float>& textureCoordArray );
 
     private:
         const aiScene *const m_Scene;
@@ -166,6 +180,9 @@ namespace rex
                 if (a.vc.g > b.vc.g) return false;
                 if (a.vc.b < b.vc.b) return true;
                 if (a.vc.b > b.vc.b) return false;
+
+                // vertex textures
+                // TODO ???
                 return false;
             }
         };
@@ -216,28 +233,18 @@ namespace rex
                 }
             };
 
-
-//            void getTextureCoordsAsFloat( std::vector<float>& keys ) {
-//            //                keys.resize(vecMap.size() * 3);
-//                for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
-//                    int index = (it->second) * 2;
-//                    keys[index] = it->first.x;
-//                    keys[index + 1] = it->first.y;
-
-//                }
-//            };
-
             size_t size() const {
                 return vecMap.size();
             }
         };
 
-
+        indexMap<std::string> mTextureMap;
+        std::vector<rex_material_standard> mMaterials;
         struct MeshInstance {
-            std::string name, matname;
+            std::string name;
+            bool useColors;
             uint32_t materialId;
             std::vector<Triangle> triangles;
-//            indexMap<aiVector3D, aiVectorCompare> vertices, normals, textureCoords;
             indexMap<aiVector3D, aiVectorCompare> textureCoords;
             indexMap<vertexData, vertexDataCompare> verticesWithColors;
         };
