@@ -127,7 +127,7 @@ void RexExporter::WriteGeometryFile() {
     rex_header *header = rex_header_create();
 
     // get materials
-//    WriteMaterials(header, materialPtrs);
+    WriteMaterials(header, materialPtrs);
 
     // get meshes
     WriteMeshes(header, meshPtrs);
@@ -192,14 +192,12 @@ void RexExporter::WriteMeshes(rex_header *header, std::vector<MeshPtr> &meshPtrs
         getTriangleArray(m.triangles, triangles);
         rexMesh.triangles = &triangles[0];
 
-        // material TODO
-        rexMesh.material_id = 0x7fffffffffffffffL;
+        // material
+        rexMesh.material_id = m.materialId;//0x7fffffffffffffffL;
 
         meshPtrs[i].mesh = rex_block_write_mesh (i /*id*/, header, &rexMesh, &meshPtrs[i].size);
         i++;
     }
-
-
 }
 
 void RexExporter::getVertexArray( const std::vector<aiVector3D> vector, std::vector<float>& vectorArray ) {
@@ -233,7 +231,28 @@ void RexExporter::getTriangleArray( const std::vector<Triangle>& triangles, std:
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+std::string RexExporter::GetMaterialName(unsigned int index) {
+    const aiMaterial* const mat = m_Scene->mMaterials[index];
+    if ( nullptr == mat ) {
+        static const std::string EmptyStr;
+        return EmptyStr;
+    }
+
+    aiString s;
+    if(AI_SUCCESS == mat->Get(AI_MATKEY_NAME,s)) {
+        return std::string(s.data,s.length);
+    }
+
+    char number[ sizeof(unsigned int) * 3 + 1 ];
+    ASSIMP_itoa10(number,index);
+    return "$Material_" + std::string(number);
+}
+
 void RexExporter::WriteMaterials(rex_header *header, std::vector<MaterialPtr> &materialPtrs) {
+    materialPtrs.resize(m_Scene->mNumMaterials);
+
+    printf("Found %d materials\n", m_Scene->mNumMaterials);
     for(unsigned int i = 0; i < m_Scene->mNumMaterials; ++i) {
         const aiMaterial* const mat = m_Scene->mMaterials[i];
 
@@ -284,11 +303,8 @@ void RexExporter::WriteMaterials(rex_header *header, std::vector<MaterialPtr> &m
 //            mOutputMat << "map_bump " << s.data << endl;
 //        }
 
-
+        materialPtrs[i].material = rex_block_write_material (i /*id*/, header, &rexMat, &materialPtrs[i].size);
     }
-
-//    long mat_sz;
-//    uint8_t *mat_ptr = rex_block_write_material (1 /*id*/, header, &mat, &mat_sz);
 }
 
 
@@ -298,6 +314,8 @@ void RexExporter::AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4
     MeshInstance& mesh = mMeshes.back();
 
     mesh.name = std::string( name.data, name.length );
+    mesh.matname = GetMaterialName(m->mMaterialIndex);  //??? needed?
+    mesh.materialId = m->mMaterialIndex;
     mesh.triangles.resize(m->mNumFaces);
 
     for(unsigned int i = 0; i < m->mNumFaces; ++i) {

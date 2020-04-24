@@ -122,6 +122,7 @@ namespace rex
 //        void WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId);
 //        void WriteDataBlockMesh();
         void WriteMaterials(rex_header *header, std::vector<MaterialPtr> &materialPtrs);
+        std::string GetMaterialName(unsigned int index);
 
         void AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat);
         void AddNode(const aiNode* nd, const aiMatrix4x4& mParent);
@@ -234,10 +235,10 @@ namespace rex
 
         struct MeshInstance {
             std::string name, matname;
+            uint32_t materialId;
             std::vector<Triangle> triangles;
 //            indexMap<aiVector3D, aiVectorCompare> vertices, normals, textureCoords;
             indexMap<aiVector3D, aiVectorCompare> textureCoords;
-//            indexMap<aiColor3D, aiColorCompare> colors;
             indexMap<vertexData, vertexDataCompare> verticesWithColors;
         };
 
