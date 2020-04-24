@@ -70,7 +70,6 @@ struct aiMesh;
 namespace rex
 {
     class FileWrapper;
-    struct RexData;
 
     class RexExporter
     {
@@ -80,43 +79,16 @@ namespace rex
         ~RexExporter();
 
         void Start();
-        std::ostringstream mOutput;
 
     private:
-        struct TriangleVertex {
-            TriangleVertex()
-            : vp()
-            , vt() {
-                // empty
-            }
-
-            // one-based, 0 means: 'does not exist'
-            unsigned int vp, vt;
-        };
-
         struct Triangle {
-            std::vector<TriangleVertex> indices;
+            std::vector<uint32_t> indices;
         };
 
-        struct vertexData {
+        struct VertexData {
             aiVector3D vp;
             aiColor3D vc;
             aiVector3D vt;
-        };
-
-        struct MeshPtr{
-            uint8_t* mesh;
-            long size;
-        };
-
-        struct MaterialPtr{
-            uint8_t* material;
-            long size;
-        };
-
-        struct ImagePtr{
-            uint8_t* image;
-            long size;
         };
 
         struct DataPtr{
@@ -127,44 +99,20 @@ namespace rex
         void WriteGeometryFile();
         void WriteMeshes(rex_header *header, int startId, int startMaterials, std::vector<DataPtr> &meshPtrs);
         void WriteImages(rex_header *header, int startId, std::vector<DataPtr> &meshPtrs);
-//        void WriteHeader(std::ostringstream &out);
-//        void WriteCoordinateSystemBlock();
-//        void WriteAllDataBlocks();
-//        void WriteDataBlock();
-//        void WriteDataHeaderBlock(uint16_t type, uint16_t version, uint32_t dataBlockSize, uint64_t dataId);
-//        void WriteDataBlockMesh();
         void WriteMaterials(rex_header *header, int startId, std::vector<DataPtr> &materialPtrs);
-        std::string GetMaterialName(unsigned int index);
         void GetMaterialsAndTextures();
 
         void AddMesh(const aiString& name, const aiMesh* m, const aiMatrix4x4& mat);
         void AddNode(const aiNode* nd, const aiMatrix4x4& mParent);
 
-        void getTriangleArray(const std::vector<Triangle>& triangles, std::vector<uint32_t> &triangleArray );
-        void getVertexArray( const std::vector<aiVector3D> vector, std::vector<float>& vectorArray );
-        void getColorArray( const std::vector<aiColor3D> vector, std::vector<float>& colorArray );
-        void getTextureCoordArray( const std::vector<aiVector3D> vector, std::vector<float>& textureCoordArray );
-
-    private:
-        const aiScene *const m_Scene;
-        std::shared_ptr<FileWrapper> m_File;
+        void GetTriangleArray(const std::vector<Triangle>& triangles, std::vector<uint32_t> &triangleArray );
+        void GetVertexArray( const std::vector<aiVector3D> vector, std::vector<float>& vectorArray );
+        void GetColorArray( const std::vector<aiColor3D> vector, std::vector<float>& colorArray );
+        void GetTextureCoordArray( const std::vector<aiVector3D> vector, std::vector<float>& textureCoordArray );
 
     public:
-        struct aiColorCompare {
-            bool operator() ( const aiColor3D& a, const aiColor3D& b ) const {
-                // color
-                if (a.r < b.r) return true;
-                if (a.r > b.r) return false;
-                if (a.g < b.g) return true;
-                if (a.g > b.g) return false;
-                if (a.b < b.b) return true;
-                if (a.b > b.b) return false;
-                return false;
-            }
-        };
-
         struct vertexDataCompare {
-            bool operator() ( const vertexData& a, const vertexData& b ) const {
+            bool operator() ( const VertexData& a, const VertexData& b ) const {
                 // position
                 if (a.vp.x < b.vp.x) return true;
                 if (a.vp.x > b.vp.x) return false;
@@ -182,18 +130,12 @@ namespace rex
                 if (a.vc.b > b.vc.b) return false;
 
                 // vertex textures
-                // TODO ???
-                return false;
-            }
-        };
-
-        struct aiVectorCompare {
-            bool operator() (const aiVector3D& a, const aiVector3D& b) const {
-                if(a.x < b.x) return true;
-                if(a.x > b.x) return false;
-                if(a.y < b.y) return true;
-                if(a.y > b.y) return false;
-                if(a.z < b.z) return true;
+                if (a.vt.x < b.vt.x) return true;
+                if (a.vt.x > b.vt.x) return false;
+                if (a.vt.y < b.vt.y) return true;
+                if (a.vt.y > b.vt.y) return false;
+                if (a.vt.z < b.vt.z) return true;
+                if (a.vt.z > b.vt.z) return false;
                 return false;
             }
         };
@@ -213,52 +155,44 @@ namespace rex
             int getIndex(const T& key) {
                 typename dataType::iterator vertIt = vecMap.find(key);
 
-
                 // vertex already exists, so reference it
                 if(vertIt != vecMap.end()){
                     return vertIt->second;
                 }
 
                 return vecMap[key] = mNextIndex++;
-            };
+            }
 
             int add(const T& key, const int index) {
                 return vecMap[key] = index;
-            };
+            }
 
             void getKeys( std::vector<T>& keys ) {
                 keys.resize(vecMap.size());
                 for(typename dataType::iterator it = vecMap.begin(); it != vecMap.end(); ++it){
                     keys[it->second] = it->first;
                 }
-            };
+            }
 
             size_t size() const {
                 return vecMap.size();
             }
         };
 
-        indexMap<std::string> mTextureMap;
-        std::vector<rex_material_standard> mMaterials;
         struct MeshInstance {
-            std::string name;
-            bool useColors;
-            uint32_t materialId;
-            std::vector<Triangle> triangles;
-            indexMap<aiVector3D, aiVectorCompare> textureCoords;
-            indexMap<vertexData, vertexDataCompare> verticesWithColors;
+            std::string                             name;
+            bool                                    useColors;
+            uint32_t                                materialId;
+            std::vector<Triangle>                   triangles;
+            indexMap<VertexData, vertexDataCompare> verticesWithColors;
         };
 
-        std::vector<MeshInstance> mMeshes;
-
-    };
-
-    /***
-     * This is the main datastructure for the REX file format
-     */
-    struct RexData
-    {
-        // todo
+    private:
+        const aiScene *const                m_Scene;
+        std::shared_ptr<FileWrapper>        m_File;
+        indexMap<std::string>               m_TextureMap;
+        std::vector<rex_material_standard>  m_Materials;
+        std::vector<MeshInstance>           m_Meshes;
     };
 
     /**
@@ -275,6 +209,15 @@ namespace rex
             if (m_file == nullptr)
             {
                 throw std::runtime_error ("FileWrapper::FileWrapper: cannot open file");
+            }
+
+            //get path of file
+            //TODO does not work on windows
+            std::string fileName = std::string(n);
+            auto pos = fileName.rfind("/");
+            m_path = "";
+            if (pos != fileName.npos) {
+                m_path = fileName.substr(0, pos + 1);
             }
         }
 
@@ -310,6 +253,10 @@ namespace rex
             return m_file;
         }
 
+        std::string getFilePath() {
+            return m_path;
+        }
+
         size_t write (const void *ptr, size_t size, size_t nitems, const std::string &debugInfo = "")
         {
             size_t ret = ::fwrite (ptr, size, nitems, m_file);
@@ -332,6 +279,7 @@ namespace rex
 
     private:
         FILE *m_file;
+        std::string m_path;
     };
 
     /*!
