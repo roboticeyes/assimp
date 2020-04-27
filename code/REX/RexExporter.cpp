@@ -169,7 +169,7 @@ void RexExporter::WriteImages(rex_header *header, int startId, std::vector<DataP
 
         // convert file extension to lower case
         for (size_t j = 0; j < fileExt.size(); j++) {
-            fileExt[j] = std::tolower(fileExt[j]);
+            fileExt[j] = (char)std::tolower(fileExt[j]);
         }
 
         if (fileExt.compare("png") == 0) {
@@ -204,8 +204,8 @@ void RexExporter::WriteMeshes(rex_header *header, int startId, int startMaterial
         rexMesh.lod = 0;
         rexMesh.max_lod = 0;
         sprintf(rexMesh.name, "%s", m.name.c_str());
-        rexMesh.nr_triangles = m.triangles.size();
-        rexMesh.nr_vertices = m.verticesWithColors.size();
+        rexMesh.nr_triangles = uint32_t(m.triangles.size());
+        rexMesh.nr_vertices = uint32_t(m.verticesWithColors.size());
 
         // vertices with colors
         std::vector<VertexData> verticesWithColors;
@@ -250,7 +250,7 @@ void RexExporter::GetVertexArray(const std::vector<aiVector3D> vector, std::vect
 
     // !! Flip coordinate system
     for (size_t i = 0; i < vector.size(); i++) {
-        int index = i * 3;
+        size_t index = i * 3;
         vectorArray[index] = vector[i].x;
         vectorArray[index + 1] = vector[i].z;
         vectorArray[index + 2] = -vector[i].y;
@@ -261,7 +261,7 @@ void RexExporter::GetVertexArray(const std::vector<aiVector3D> vector, std::vect
 void RexExporter::GetColorArray(const std::vector<aiColor3D> vector, std::vector<float> &colorArray) {
     colorArray.resize(uint32_t(vector.size()) * 3);
     for (size_t i = 0; i < vector.size(); i++) {
-        int index = i * 3;
+        size_t index = i * 3;
         colorArray[index] = vector[i].r;
         colorArray[index + 1] = vector[i].g;
         colorArray[index + 2] = vector[i].b;
@@ -273,7 +273,7 @@ void RexExporter::GetTextureCoordArray(const std::vector<aiVector3D> vector, std
     textureCoordArray.resize(uint32_t(vector.size()) * 2);
 
     for (size_t i = 0; i < vector.size(); i++) {
-        int index = i * 2;
+        size_t index = i * 2;
         textureCoordArray[index] = vector[i].x;
         textureCoordArray[index + 1] = vector[i].y;
     }
