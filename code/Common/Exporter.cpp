@@ -75,7 +75,7 @@ Here we implement only the C++ interface (Assimp::Exporter).
 namespace Assimp {
 
 #ifdef _WIN32
-#    pragma warning( disable : 4800 ) 
+#    pragma warning( disable : 4800 )
 #endif // _WIN32
 
 
@@ -89,6 +89,7 @@ void ExportSceneCollada(const char*,IOSystem*, const aiScene*, const ExportPrope
 void ExportSceneXFile(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneStep(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneObj(const char*,IOSystem*, const aiScene*, const ExportProperties*);
+void ExportSceneRex(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneObjNoMtl(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneSTL(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneSTLBinary(const char*,IOSystem*, const aiScene*, const ExportProperties*);
@@ -108,6 +109,7 @@ void ExportScene3MF( const char*, IOSystem*, const aiScene*, const ExportPropert
 void ExportSceneM3D(const char*, IOSystem*, const aiScene*, const ExportProperties*);
 void ExportSceneM3DA(const char*, IOSystem*, const aiScene*, const ExportProperties*);
 void ExportAssimp2Json(const char* , IOSystem*, const aiScene* , const Assimp::ExportProperties*);
+void ExportSceneRex(const char*,IOSystem*, const aiScene*, const ExportProperties*);
 
 
 static void setupExporterArray(std::vector<Exporter::ExportFormatEntry> &exporters) {
@@ -129,6 +131,11 @@ static void setupExporterArray(std::vector<Exporter::ExportFormatEntry> &exporte
 			aiProcess_GenSmoothNormals /*| aiProcess_PreTransformVertices */));
 	exporters.push_back(Exporter::ExportFormatEntry("objnomtl", "Wavefront OBJ format without material file", "obj", &ExportSceneObjNoMtl,
 			aiProcess_GenSmoothNormals /*| aiProcess_PreTransformVertices */));
+#endif
+
+#ifndef ASSIMP_BUILD_NO_REX_EXPORTER
+	exporters.push_back(Exporter::ExportFormatEntry("rex", "REXfile (REXos platform)", "rex", &ExportSceneRex,
+			aiProcess_GenSmoothNormals | aiProcess_Triangulate /*| aiProcess_PreTransformVertices */));
 #endif
 
 #ifndef ASSIMP_BUILD_NO_STL_EXPORTER
