@@ -46,6 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define AI_REXEXPORTER_H_INC
 
 #include <assimp/types.h>
+#include <iostream>
 #include <sstream>
 #include <vector>
 #include <memory>
@@ -262,6 +263,7 @@ namespace rex
             size_t ret = ::fwrite (ptr, size, nitems, m_file);
             if (ret != nitems)
             {
+                std::cerr << debugInfo << "error writing";
                 throw std::runtime_error ("FileWrapper::fwrite: error writing file");
             }
             return  ret;
@@ -272,6 +274,7 @@ namespace rex
             size_t ret = ::fread (ptr, size, nitems, m_file);
             if (ret != nitems)
             {
+                std::cerr << debugInfo << "error reading";
                 throw std::runtime_error ("FileWrapper::fread: error reading file");
             }
             return  ret;

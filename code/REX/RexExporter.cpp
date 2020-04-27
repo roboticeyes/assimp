@@ -175,7 +175,7 @@ void RexExporter::WriteImages(rex_header *header, int startId, std::vector<DataP
         auto fileExt = fileName.substr(dotPos + 1, fileName.size() - dotPos - 1);
 
         // convert file extension to lower case
-        for (int i = 0; i < fileExt.size(); i++) {
+        for (size_t i = 0; i < fileExt.size(); i++) {
             fileExt[i] = std::tolower(fileExt[i]);
         }
 
@@ -258,7 +258,7 @@ void RexExporter::GetVertexArray( const std::vector<aiVector3D> vector, std::vec
     vectorArray.resize(vector.size() * 3);
 
     // !! Flip coordinate system
-    for (auto i = 0; i < vector.size(); i++) {
+    for (size_t i = 0; i < vector.size(); i++) {
         int index = i * 3;
         vectorArray[index] = vector[i].x;
         vectorArray[index + 1] = vector[i].z;
@@ -269,7 +269,7 @@ void RexExporter::GetVertexArray( const std::vector<aiVector3D> vector, std::vec
 // ------------------------------------------------------------------------------------------------
 void RexExporter::GetColorArray( const std::vector<aiColor3D> vector, std::vector<float>& colorArray ) {
     colorArray.resize(vector.size() * 3);
-    for (auto i = 0; i < vector.size(); i++) {
+    for (size_t i = 0; i < vector.size(); i++) {
         int index = i * 3;
         colorArray[index] = vector[i].r;
         colorArray[index + 1] = vector[i].g;
@@ -281,7 +281,7 @@ void RexExporter::GetColorArray( const std::vector<aiColor3D> vector, std::vecto
 void RexExporter::GetTextureCoordArray(const std::vector<aiVector3D> vector, std::vector<float>& textureCoordArray ) {
     textureCoordArray.resize(vector.size() * 2);
 
-    for (auto i = 0; i < vector.size(); i++) {
+    for (size_t i = 0; i < vector.size(); i++) {
         int index = i * 2;
         textureCoordArray[index] = vector[i].x;
         textureCoordArray[index + 1] = vector[i].y;
@@ -291,7 +291,7 @@ void RexExporter::GetTextureCoordArray(const std::vector<aiVector3D> vector, std
 // ------------------------------------------------------------------------------------------------
 void RexExporter::GetTriangleArray( const std::vector<Triangle>& triangles, std::vector<uint32_t>& triangleArray ) {
     triangleArray.resize(triangles.size() * 3);
-    for(auto i = 0; i < triangles.size(); i++){
+    for(size_t i = 0; i < triangles.size(); i++){
         Triangle t = triangles.at(i);
         triangleArray[3 * i] = t.indices[0];
         triangleArray[3 * i + 1] = t.indices[1];
