@@ -51,7 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <map>
 #include <sstream>
-#include <libopenrex/rex.h>
+#include <rex.h>
 
 #ifdef _WIN32
 #define fopen_rex( file, filename, mode ) \
