@@ -152,8 +152,10 @@ void RexExporter::WriteGeometryFile() {
     }
 
     // write points
-    m_File->write(pointPtr.data, pointPtr.size, 1, "writePoints");
-    FREE(pointPtr.data)
+    if (pointPtr.size > 0) {
+        m_File->write(pointPtr.data, pointPtr.size, 1, "writePoints");
+        FREE(pointPtr.data)
+    }
 
     FREE(header_ptr);
 }
@@ -232,6 +234,10 @@ void RexExporter::WritePoints(uint64_t startId, rex_header *header, DataPtr &poi
 {
     printf("Found %d points\n", (int)m_Points.size());
 
+    if (m_Points.size() == 0) {
+        pointPtrs.size = 0;
+        return;
+    }
 
     // now write all points to one pointlist
 
@@ -281,8 +287,6 @@ void RexExporter::WriteObjects(rex_header *header, uint64_t startId, uint64_t st
 // ------------------------------------------------------------------------------------------------
 void RexExporter::WriteMeshes(rex_header *header, uint64_t startId, uint64_t startMaterials, std::vector<DataPtr> &meshPtrs)
 {
-    printf("Found %d meshes\n", (int)m_Meshes.size());
-
     meshPtrs.resize(m_Meshes.size());
 
     // now write all mesh instances
@@ -295,6 +299,13 @@ void RexExporter::WriteMeshes(rex_header *header, uint64_t startId, uint64_t sta
         rexMesh.max_lod = 0;
         sprintf(rexMesh.name, "%s", m.name.c_str());
         rexMesh.nr_triangles = uint32_t(m.triangles.size());
+        if (rexMesh.nr_triangles == 0) {
+            // no real mesh
+            printf("No meshes found.\n");
+            meshPtrs.resize(0);
+            return;
+        }
+
         rexMesh.nr_vertices = uint32_t(m.verticesWithColorsAndTextureCoords.size());
 
         // vertices with colors
@@ -332,6 +343,7 @@ void RexExporter::WriteMeshes(rex_header *header, uint64_t startId, uint64_t sta
 
         i++;
     }
+     printf("Found %d meshes\n", (int)m_Meshes.size());
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -488,7 +500,6 @@ void RexExporter::AddMesh(const aiString &name, const aiMesh *m, const aiMatrix4
         // point cloud
         AddPoints(m, mat);
     }
-    printf("pos %d\n", m->mNumVertices);
     int triangleIndex = 0;
     for (unsigned int i = 0; i < m->mNumFaces; ++i) {
         const aiFace &f = m->mFaces[i];
@@ -536,7 +547,6 @@ void RexExporter::AddMesh(const aiString &name, const aiMesh *m, const aiMatrix4
 // ------------------------------------------------------------------------------------------------
 void RexExporter::AddPoints(const aiMesh *m, const aiMatrix4x4 &mat)
 {
-    printf("points %d \n", m->mNumVertices);
     for (size_t i = 0; i < m->mNumVertices; i++) {
         m_Points.push_back(PointInstance());
         PointInstance &point = m_Points.back();
@@ -544,15 +554,11 @@ void RexExporter::AddPoints(const aiMesh *m, const aiMatrix4x4 &mat)
         point.vertex = mat * m->mVertices[i];
 
         point.hasColor = false;
-//        if (m->mColors[i]) {
-//            point.hasColor = true;
-//            aiColor4D col4 = m->mColors[i][0];
-//            point.color = aiColor3D(col4.r, col4.g, col4.b);
-//        }
-    }
-    for (size_t i = 0; i < m_Points.size(); i++) {
-        aiVector3D vertex = m_Points.at(i).vertex;
-        printf("%d, %f %f %f\n", i, vertex.x, vertex.y, vertex.z);
+        if (i < AI_MAX_NUMBER_OF_COLOR_SETS &&  m->mColors[i]) {
+            point.hasColor = true;
+            aiColor4D col4 = m->mColors[i][0];
+            point.color = aiColor3D(col4.r, col4.g, col4.b);
+        }
     }
 }
 
