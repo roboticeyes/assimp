@@ -164,12 +164,11 @@ void RexExporter::WriteGeometryFile() {
 void RexExporter::WriteImages(rex_header *header, uint64_t startId, std::vector<DataPtr> &imagePtrs) {
     imagePtrs.resize(m_TextureMap.size());
 
-    printf("Found %zu texture files\n", m_TextureMap.size());
-
     uint64_t i = 0;
     std::vector<std::string> names;
     m_TextureMap.getKeys(names);
 
+    int nrOfNotFoundImages = 0;
     for (std::string &fileName : names) {
         rex_image img;
 
@@ -177,6 +176,12 @@ void RexExporter::WriteImages(rex_header *header, uint64_t startId, std::vector<
         long size;
         std::string testFileWithPath = m_File->getFilePath() + fileName;
         img.data = read_file_binary(testFileWithPath.c_str(), &size);
+
+        if (img.data == nullptr) {
+            printf("Cannot load texture file %s \n", names[i].c_str());
+            nrOfNotFoundImages++;
+            continue;
+        }
         img.sz = (uint64_t)size;
 
         auto dotPos = fileName.rfind(".");
@@ -198,6 +203,9 @@ void RexExporter::WriteImages(rex_header *header, uint64_t startId, std::vector<
         imagePtrs[i].data = rex_block_write_image(startId + i /*id*/, header, &img, &imagePtrs[i].size);
         i++;
     }
+    imagePtrs.resize(m_TextureMap.size() - nrOfNotFoundImages);
+
+    printf("Texture files: assigned: %zu, loaded: %lu\n", m_TextureMap.size(), m_TextureMap.size() - nrOfNotFoundImages);
 }
 
 // ------------------------------------------------------------------------------------------------
