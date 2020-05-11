@@ -211,7 +211,7 @@ void RexExporter::WriteImages(rex_header *header, uint64_t startId, std::vector<
 // ------------------------------------------------------------------------------------------------
 void RexExporter::WriteLines(uint64_t startId, rex_header *header, std::vector<DataPtr> &linePtrs)
 {
-    printf("Found %d lines\n", (int)m_Lines.size());
+    // printf("Found %d lines\n", (int)m_Lines.size());
 
     linePtrs.resize(m_Lines.size());
 
@@ -240,7 +240,7 @@ void RexExporter::WriteLines(uint64_t startId, rex_header *header, std::vector<D
 // ------------------------------------------------------------------------------------------------
 void RexExporter::WritePoints(uint64_t startId, rex_header *header, DataPtr &pointPtrs)
 {
-    printf("Found %d points\n", (int)m_Points.size());
+    // printf("Found %d points\n", (int)m_Points.size());
 
     if (m_Points.size() == 0) {
         pointPtrs.size = 0;
@@ -351,7 +351,7 @@ void RexExporter::WriteMeshes(rex_header *header, uint64_t startId, uint64_t sta
 
         i++;
     }
-     printf("Found %d meshes\n", (int)m_Meshes.size());
+    // printf("Found %d meshes\n", (int)m_Meshes.size());
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -418,7 +418,7 @@ void RexExporter::GetMaterialsAndTextures() {
         printf("No embeddeed textures used.\n");
     }
 
-    printf("Found %d materials\n", m_Scene->mNumMaterials);
+    // printf("Found %d materials\n", m_Scene->mNumMaterials);
     m_Materials.resize(m_Scene->mNumMaterials);
     for (unsigned int i = 0; i < m_Scene->mNumMaterials; ++i) {
         const aiMaterial *const mat = m_Scene->mMaterials[i];
