@@ -24,7 +24,7 @@ uint8_t *rex_block_write_image (uint64_t id, struct rex_header *header, struct r
     MEM_CHECK (img)
     MEM_CHECK (img->data)
 
-    *sz = REX_BLOCK_HEADER_SIZE + sizeof (uint32_t) + img->sz;
+    *sz = REX_BLOCK_HEADER_SIZE + sizeof (uint32_t) + (long)img->sz;
 
     uint8_t *ptr = malloc (*sz);
     memset (ptr, 0, *sz);
